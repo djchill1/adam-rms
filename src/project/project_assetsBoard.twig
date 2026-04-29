@@ -434,32 +434,33 @@
             return;
         }
 
-        var selectHtml = '<select id="replacementSelect" class="form-control">';
+        var selectHtml = '<select id="replacementSelect" class="form-control form-control-lg">';
         candidates.forEach(function(item) {
-            var isPending = item.assetsAssignmentsStatus_name === 'Pending pick';
-            var classAttr = isPending ? '' : ' class="text-muted"';
             var text = item.assets_tag + (item.asset_definableFields_1 ? ' (' + item.asset_definableFields_1 + ')' : '') + ' - ' + item.assetsAssignmentsStatus_name;
-            selectHtml += '<option value="' + item.assetsAssignments_id + '"' + classAttr + '>' + text + '</option>';
+            selectHtml += '<option value="' + item.assetsAssignments_id + '">' + text + '</option>';
         });
         selectHtml += '</select>';
 
         bootbox.dialog({
             title: 'Select asset to replace',
-            message: selectHtml,
+            message: '<div class="mb-3">' + selectHtml + '</div>',
+            size: 'large',
             buttons: {
                 cancel: {
                     label: 'Cancel',
                     className: 'btn-secondary'
                 },
-                confirm: {
+                ok: {
                     label: 'Replace',
                     className: 'btn-primary',
                     callback: function() {
                         var selected = $('#replacementSelect').val();
                         if (selected) {
                             swapScannedAsset(value, assetId, selected, assetStatus);
+                            return true;
                         } else {
                             window.barcodeAssignInProgress = false;
+                            return false;
                         }
                     }
                 }
