@@ -269,6 +269,30 @@
      * @param value The barcode value
      * @param type The barcode format type (e.g. 'QR_CODE', 'CODE_128', or 'UNKNOWN' for USB/Bluetooth)
      */
+    function notifyScanError() {
+        try {
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                var ctx = window.__barcodeDispatchAudioContext || new AudioContext();
+                window.__barcodeDispatchAudioContext = ctx;
+                if (ctx.state === 'suspended') {
+                    ctx.resume().catch(function() {});
+                }
+                var oscillator = ctx.createOscillator();
+                var gain = ctx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880;
+                gain.gain.value = 0.18;
+                oscillator.connect(gain);
+                gain.connect(ctx.destination);
+                oscillator.start();
+                oscillator.stop(ctx.currentTime + 0.08);
+            }
+        } catch (e) {
+            console.error('Notification tone failed', e);
+        }
+    }
+
     function dispatchBarcodeScanned(value, type) {
         var assetStatus = $(".assetStatusSelectorBarcodeDispatch:visible").val();
         var instanceId = $(".assetStatusSelectorBarcodeDispatch:visible").data("instanceid");
@@ -297,6 +321,7 @@
                         title: 'Asset dispatched via barcode'
                     });
                 } else if (result.error && result.error.code === "NOTASSIGNED" && ('assets_id' in result.error) && canAssignAssets) {
+                    notifyScanError();
                     // Supermarket Sweep: asset exists but is not assigned to this project
                     // Prevent multiple concurrent NOTASSIGNED flows (scanner may fire repeatedly)
                     if (window.barcodeAssignInProgress) {
@@ -366,6 +391,7 @@
                                     },
                                     error: function() {
                                         window.barcodeAssignInProgress = false;
+                                        notifyScanError();
                                         bootbox.alert('Sorry we couldn\'t connect to the internet - please check your connection');
                                     }
                                 });
@@ -382,6 +408,7 @@
                         }
                     });
                 } else {
+                    notifyScanError();
                     var errorMsg = (result.error && result.error.message) ? result.error.message : "Barcode not found or asset not assigned to project";
                     Toast.fire({
                         type: 'error',
@@ -393,6 +420,7 @@
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 console.error("Barcode dispatch request failed", jqXHR, textStatus, errorThrown);
+                notifyScanError();
                 Toast.fire({
                     type: 'error',
                     title: 'Could not update asset status. Please try again.'
@@ -455,6 +483,7 @@
                         assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
                         drawButtons();
                     } else {
+                        notifyScanError();
                         Toast.fire({
                             type: 'error',
                             title: assetTag + ": " + result.error.message
@@ -467,6 +496,7 @@
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
                     console.error("Quick dispatch request failed", jqXHR, textStatus, errorThrown);
+                    notifyScanError();
                     Toast.fire({
                         type: 'error',
                         title: 'Could not update asset status. Please try again.'
