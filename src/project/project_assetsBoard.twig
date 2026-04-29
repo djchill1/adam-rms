@@ -412,7 +412,7 @@
         });
     }
 
-    function promptBarcodeReplacement(value, assetId, candidates) {
+    function promptBarcodeReplacement(value, assetId, candidates, assetStatus) {
         if (!candidates || candidates.length === 0) {
             window.barcodeAssignInProgress = false;
             return;
@@ -537,7 +537,7 @@
                                     label: "Replace asset",
                                     className: "btn-warning",
                                     callback: function() {
-                                        promptBarcodeReplacement(value, result.error.assets_id, swapCandidates);
+                                        promptBarcodeReplacement(value, result.error.assets_id, swapCandidates, assetStatus);
                                     }
                                 }
                             }
