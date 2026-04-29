@@ -36,7 +36,23 @@ if ($barcode and $barcode['assets_id'] != null) {
     $currentAssignment = $DBLIB->getOne("assetsAssignments", ["assetsAssignmentsStatus_id"]);
 
     if (!$currentAssignment) {
-        finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id']]);
+            // Find replacement candidates in the same project for this asset type
+            $DBLIB->where("assets.assets_id", $barcode['assets_id']);
+            $DBLIB->where("assets.instances_id", $assetInstanceId);
+            $DBLIB->where('assets.assets_deleted', 0);
+            $assetDetails = $DBLIB->getOne("assets", ["assetTypes_id"]);
+
+            $swapCandidates = [];
+            if ($assetDetails && $assetDetails['assetTypes_id']) {
+                $DBLIB->where("assetsAssignments.projects_id", $_POST['projects_id']);
+                $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
+                $DBLIB->where("assets.assetTypes_id", $assetDetails['assetTypes_id']);
+                $DBLIB->where('assets.assets_deleted', 0);
+                $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
+                $swapCandidates = $DBLIB->get("assetsAssignments", null, ["assetsAssignments_id", "assets.assets_id", "assets.assets_tag", "assets.asset_definableFields_1"]);
+            }
+
+            finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id'], "swapCandidates" => $swapCandidates]);
     }
 
     // If the assignment already has the requested status, treat this as success (no-op)
