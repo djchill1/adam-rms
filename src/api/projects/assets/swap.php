@@ -50,6 +50,10 @@ $flagsBlocks = assetFlagsAndBlocks($_POST['assets_id']);
 if (count($assignments) < 1 and $flagsBlocks['COUNT']['BLOCK'] < 1) {
     $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
     $assignment = $DBLIB->update("assetsAssignments", ["assets_id" => $_POST['assets_id']],1);
+    if ($assignment && isset($_POST['assetsAssignmentsStatus_id']) && $AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS")) {
+        $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
+        $DBLIB->update("assetsAssignments", ["assetsAssignmentsStatus_id" => $_POST['assetsAssignmentsStatus_id']]);
+    }
     finish(true);
 } else finish(false);
 

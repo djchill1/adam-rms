@@ -49,7 +49,8 @@ if ($barcode and $barcode['assets_id'] != null) {
                 $DBLIB->where("assets.assetTypes_id", $assetDetails['assetTypes_id']);
                 $DBLIB->where('assets.assets_deleted', 0);
                 $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
-                $swapCandidates = $DBLIB->get("assetsAssignments", null, ["assetsAssignments_id", "assets.assets_id", "assets.assets_tag", "assets.asset_definableFields_1"]);
+                $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
+                $swapCandidates = $DBLIB->get("assetsAssignments", null, ["assetsAssignments_id", "assets.assets_id", "assets.assets_tag", "assets.asset_definableFields_1", "assetsAssignments.assetsAssignmentsStatus_id", "assetsAssignmentsStatus.assetsAssignmentsStatus_name"]);
             }
 
             finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id'], "swapCandidates" => $swapCandidates]);

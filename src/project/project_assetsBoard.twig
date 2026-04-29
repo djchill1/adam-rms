@@ -371,14 +371,15 @@
         });
     }
 
-    function swapScannedAsset(value, assetId, assignmentId) {
+    function swapScannedAsset(value, assetId, assignmentId, statusId) {
         $.ajax({
             url: "{{ CONFIG.ROOTURL }}/api/projects/assets/swap.php",
             type: "POST",
             dataType: "json",
             data: {
                 assetsAssignments_id: assignmentId,
-                assets_id: assetId
+                assets_id: assetId,
+                assetsAssignmentsStatus_id: statusId
             },
             cache: false,
             success: function(swapResult) {
@@ -418,13 +419,13 @@
         }
 
         if (candidates.length === 1) {
-            var candidateText = candidates[0].assets_tag + (candidates[0].asset_definableFields_1 ? ' (' + candidates[0].asset_definableFields_1 + ')' : '');
+            var candidateText = candidates[0].assets_tag + (candidates[0].asset_definableFields_1 ? ' (' + candidates[0].asset_definableFields_1 + ')' : '') + ' - ' + candidates[0].assetsAssignmentsStatus_name;
             bootbox.confirm({
                 title: 'Replace existing asset?',
                 message: 'Replace ' + candidateText + ' in the project with this scanned asset?',
                 callback: function(confirmed) {
                     if (confirmed) {
-                        swapScannedAsset(value, assetId, candidates[0].assetsAssignments_id);
+                        swapScannedAsset(value, assetId, candidates[0].assetsAssignments_id, assetStatus);
                     } else {
                         window.barcodeAssignInProgress = false;
                     }
@@ -433,22 +434,34 @@
             return;
         }
 
-        var options = candidates.map(function(item) {
-            return {
-                text: item.assets_tag + (item.asset_definableFields_1 ? ' (' + item.asset_definableFields_1 + ')' : ''),
-                value: item.assetsAssignments_id
-            };
+        var selectHtml = '<select id="replacementSelect" class="form-control">';
+        candidates.forEach(function(item) {
+            var isPending = item.assetsAssignmentsStatus_name === 'Pending pick';
+            var classAttr = isPending ? '' : ' class="text-muted"';
+            var text = item.assets_tag + (item.asset_definableFields_1 ? ' (' + item.asset_definableFields_1 + ')' : '') + ' - ' + item.assetsAssignmentsStatus_name;
+            selectHtml += '<option value="' + item.assetsAssignments_id + '"' + classAttr + '>' + text + '</option>';
         });
+        selectHtml += '</select>';
 
-        bootbox.prompt({
+        bootbox.dialog({
             title: 'Select asset to replace',
-            inputType: 'select',
-            inputOptions: options,
-            callback: function(result) {
-                if (result) {
-                    swapScannedAsset(value, assetId, result);
-                } else {
-                    window.barcodeAssignInProgress = false;
+            message: selectHtml,
+            buttons: {
+                cancel: {
+                    label: 'Cancel',
+                    className: 'btn-secondary'
+                },
+                confirm: {
+                    label: 'Replace',
+                    className: 'btn-primary',
+                    callback: function() {
+                        var selected = $('#replacementSelect').val();
+                        if (selected) {
+                            swapScannedAsset(value, assetId, selected, assetStatus);
+                        } else {
+                            window.barcodeAssignInProgress = false;
+                        }
+                    }
                 }
             }
         });
