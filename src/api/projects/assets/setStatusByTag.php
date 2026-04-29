@@ -3,8 +3,11 @@ require_once __DIR__ . '/../../apiHeadSecure.php';
 
 if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS") or !isset($_POST['projects_id']) or !isset($_POST['assetsAssignments_status']) or !isset($_POST['text']) or strlen($_POST['text']) < 1) finish(false, ["message" => "Missing required fields","code"=>"MISSINGFIELDS"]);
 
+$assetInstanceId = isset($_POST['instances_id']) && strlen($_POST['instances_id']) > 0 && is_numeric($_POST['instances_id']) ? $_POST['instances_id'] : $AUTH->data['instance']['instances_id'];
+
 $DBLIB->where("assets.assets_deleted",0);
 $DBLIB->where("assets.assets_tag", $_POST["text"]);
+$DBLIB->where("assets.instances_id", $assetInstanceId);
 $DBLIB->where("projects.projects_id", $_POST['projects_id']);
 $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("projects.projects_deleted", 0);
@@ -15,7 +18,7 @@ if (!$assignment or $assignment['assets_id'] == null) finish(false, ["message" =
 if ($assignment['assetsAssignmentsStatus_id'] == $_POST['assetsAssignments_status']) finish(true, null, ["assets_id" => $assignment['assets_id']]); // No change
 
 $DBLIB->where("assetsAssignmentsStatus_id", $_POST['assetsAssignments_status']);
-$DBLIB->where("instances_id", $assignment['instances_id']); // Use the instance of the asset
+$DBLIB->where("instances_id", $assetInstanceId); // Use the selected asset instance
 $status = $DBLIB->getone("assetsAssignmentsStatus",["assetsAssignmentsStatus_id"]);
 if (!$status or $status['assetsAssignmentsStatus_id'] == null) finish(false, ["message" => "Status not found","code"=>"STATUSNOTFOUND"]);
 

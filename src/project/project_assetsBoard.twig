@@ -284,6 +284,7 @@
         $.ajax({
             url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusBarcode.php",
             type: "POST",
+            dataType: "json",
             data: requestData,
             cache: false,
             success: function(result, status, data) {
@@ -391,9 +392,10 @@
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                console.log(jqXHR, textStatus, errorThrown);
-                bootbox.alert('Sorry we couldn\'t connect to the internet - please check your connection', function () {
-                    location.reload();
+                console.error("Barcode dispatch request failed", jqXHR, textStatus, errorThrown);
+                Toast.fire({
+                    type: 'error',
+                    title: 'Could not update asset status. Please try again.'
                 });
             }
         });
@@ -439,10 +441,12 @@
             $.ajax({
                 url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusByTag.php",
                 type: "POST",
+                dataType: "json",
                 data: {
                     text: assetTag,
                     assetsAssignments_status: assetStatus,
                     projects_id: {{ project.projects_id }},
+                    instances_id: instanceId
                 },
                 cache: false,
                 success: function(result, status, data) {
@@ -462,10 +466,10 @@
                     $("#assetTagQuickDispatch").focus();
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
-                    console.log(jqXHR, textStatus, errorThrown);
-                    console.log("Connection Error");
-                    bootbox.alert('Sorry we couldn\'t connect to the internet - please check your connection', function () {
-                        location.reload();
+                    console.error("Quick dispatch request failed", jqXHR, textStatus, errorThrown);
+                    Toast.fire({
+                        type: 'error',
+                        title: 'Could not update asset status. Please try again.'
                     });
                 }
             });

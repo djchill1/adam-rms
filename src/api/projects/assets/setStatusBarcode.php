@@ -4,12 +4,13 @@ require_once __DIR__ . '/../../apiHeadSecure.php';
 if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS") or !isset($_POST['projects_id']) or !isset($_POST['assetsAssignments_status']) or !isset($_POST['text']) or strlen($_POST['text']) < 1) finish(false);
 
 $hasType = isset($_POST['type']) && strlen($_POST['type']) > 0 && $_POST['type'] !== 'UNKNOWN';
+$assetInstanceId = isset($_POST['instances_id']) && strlen($_POST['instances_id']) > 0 && is_numeric($_POST['instances_id']) ? $_POST['instances_id'] : $AUTH->data['instance']['instances_id'];
 
-//See if Barcode is in database - scope to current instance via assets join
+// See if Barcode is in database - scope to the selected asset instance via assets join
 $DBLIB->where("assetsBarcodes.assetsBarcodes_value", $_POST['text']);
 if ($hasType) $DBLIB->where("assetsBarcodes.assetsBarcodes_type", $_POST['type']);
 $DBLIB->where("assetsBarcodes.assetsBarcodes_deleted", 0);
-$DBLIB->where("assets.instances_id", $AUTH->data['instance']['instances_id']);
+$DBLIB->where("assets.instances_id", $assetInstanceId);
 $DBLIB->join("assets", "assets.assets_id=assetsBarcodes.assets_id", "LEFT");
 $barcode = $DBLIB->getone("assetsBarcodes", ["assetsBarcodes.assets_id", "assetsBarcodes.assetsBarcodes_id"]);
 if ($barcode and $barcode['assets_id'] != null) {
@@ -62,8 +63,8 @@ if ($barcode and $barcode['assets_id'] != null) {
  *     path="/projects/assets/setStatusBarcode.php", 
  *     summary="Set Asset Assignment Status using Barcode", 
  *     description="Set the status for an asset assignment using a barcode  
-Requires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS
-", 
+ * Requires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS
+ * ", 
  *     operationId="setAssetAssignmentStatusBarcode", 
  *     tags={"project_assets"}, 
  *     @OA\Response(
