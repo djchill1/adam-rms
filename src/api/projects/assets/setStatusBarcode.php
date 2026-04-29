@@ -1,10 +1,13 @@
 <?php
 require_once __DIR__ . '/../../apiHeadSecure.php';
 
-if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS") or !isset($_POST['projects_id']) or !isset($_POST['assetsAssignments_status']) or !isset($_POST['text']) or strlen($_POST['text']) < 1) finish(false);
+if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS") or !isset($_POST['projects_id']) or !isset($_POST['assetsAssignments_status']) or !isset($_POST['text']) or strlen($_POST['text']) < 1) {
+    finish(false, ["code" => "MISSING_PARAMS", "message" => "Missing required data for barcode dispatch"]);
+}
 
-$hasType = isset($_POST['type']) && strlen($_POST['type']) > 0 && $_POST['type'] !== 'UNKNOWN';
-$assetInstanceId = isset($_POST['instances_id']) && strlen($_POST['instances_id']) > 0 && is_numeric($_POST['instances_id']) ? $_POST['instances_id'] : $AUTH->data['instance']['instances_id'];
+try {
+    $hasType = isset($_POST['type']) && strlen($_POST['type']) > 0 && $_POST['type'] !== 'UNKNOWN';
+    $assetInstanceId = isset($_POST['instances_id']) && strlen($_POST['instances_id']) > 0 && is_numeric($_POST['instances_id']) ? $_POST['instances_id'] : $AUTH->data['instance']['instances_id'];
 
 // See if Barcode is in database - scope to the selected asset instance via assets join
 $DBLIB->where("assetsBarcodes.assetsBarcodes_value", $_POST['text']);
@@ -57,7 +60,13 @@ if ($barcode and $barcode['assets_id'] != null) {
         $bCMS->auditLog("EDIT-STATUS", "assetsAssignments", "set to " . $_POST['assetsAssignments_status'] . " by barcode scan", $AUTH->data['users_userid'], null, $_POST['projects_id']);
         finish(true, null, ["assets_id" => $barcode['assets_id']]);
     }
-} else finish(false);
+    } else {
+        finish(false, ["code" => "NOTFOUND", "message" => "Barcode not found"]);
+    }
+} catch (Throwable $e) {
+    error_log("setStatusBarcode exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n" . $e->getTraceAsString());
+    finish(false, ["code" => "SERVER_ERROR", "message" => "Internal server error"]);
+}
 
 /** @OA\Post(
  *     path="/projects/assets/setStatusBarcode.php", 
