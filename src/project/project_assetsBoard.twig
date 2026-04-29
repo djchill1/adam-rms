@@ -278,15 +278,33 @@
                 if (ctx.state === 'suspended') {
                     ctx.resume().catch(function() {});
                 }
-                var oscillator = ctx.createOscillator();
-                var gain = ctx.createGain();
-                oscillator.type = 'sine';
-                oscillator.frequency.value = 880;
-                gain.gain.value = 0.18;
-                oscillator.connect(gain);
-                gain.connect(ctx.destination);
-                oscillator.start();
-                oscillator.stop(ctx.currentTime + 0.08);
+
+                var now = ctx.currentTime;
+                var firstTone = ctx.createOscillator();
+                var firstGain = ctx.createGain();
+                firstTone.type = 'square';
+                firstTone.frequency.setValueAtTime(440, now);
+                firstTone.frequency.linearRampToValueAtTime(260, now + 0.12);
+                firstGain.gain.setValueAtTime(0, now);
+                firstGain.gain.linearRampToValueAtTime(0.18, now + 0.01);
+                firstGain.gain.linearRampToValueAtTime(0, now + 0.12);
+                firstTone.connect(firstGain);
+                firstGain.connect(ctx.destination);
+                firstTone.start(now);
+                firstTone.stop(now + 0.12);
+
+                var secondTone = ctx.createOscillator();
+                var secondGain = ctx.createGain();
+                secondTone.type = 'square';
+                secondTone.frequency.setValueAtTime(330, now + 0.18);
+                secondTone.frequency.linearRampToValueAtTime(220, now + 0.28);
+                secondGain.gain.setValueAtTime(0, now + 0.18);
+                secondGain.gain.linearRampToValueAtTime(0.16, now + 0.19);
+                secondGain.gain.linearRampToValueAtTime(0, now + 0.28);
+                secondTone.connect(secondGain);
+                secondGain.connect(ctx.destination);
+                secondTone.start(now + 0.18);
+                secondTone.stop(now + 0.28);
             }
         } catch (e) {
             console.error('Notification tone failed', e);
