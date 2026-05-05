@@ -317,6 +317,13 @@
      * @param value The barcode value
      * @param type The barcode format type (e.g. 'QR_CODE', 'CODE_128', or 'UNKNOWN' for USB/Bluetooth)
      */
+    function focusBarcodeDispatchInput() {
+        var $input = $("#barcodeScanTextInputDispatch");
+        if ($input.length) {
+            $input.focus();
+        }
+    }
+
     function notifyScanError() {
         try {
             var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -407,6 +414,7 @@
                                 title: 'Asset added to project but status could not be updated'
                             });
                             window.barcodeAssignInProgress = false;
+                            focusBarcodeDispatchInput();
                         }
                     });
                 } else {
@@ -418,6 +426,7 @@
                     var resultDiv = $("<div>").addClass("alert alert-danger").text(value + ": " + assignErrorMsg);
                     $("#barcodeDispatchResult").prepend(resultDiv);
                     window.barcodeAssignInProgress = false;
+                    focusBarcodeDispatchInput();
                 }
             },
             error: function() {
@@ -460,6 +469,7 @@
                         type: 'success',
                         title: 'Asset replaced in project'
                     });
+                    focusBarcodeDispatchInput();
                 } else {
                     notifyScanError();
                     var swapErrorMsg = swapResult.error ? swapResult.error.message : 'Could not replace asset';
@@ -469,6 +479,7 @@
                     });
                     var resultDiv = $("<div>").addClass("alert alert-danger").text(value + ': ' + swapErrorMsg);
                     $("#barcodeDispatchResult").prepend(resultDiv);
+                    focusBarcodeDispatchInput();
                 }
             },
             error: function() {
@@ -478,6 +489,7 @@
                     type: 'error',
                     title: 'Could not replace asset. Please try again.'
                 });
+                focusBarcodeDispatchInput();
             }
         });
     }
@@ -485,6 +497,7 @@
     function promptBarcodeReplacement(value, assetId, candidates, assetStatus) {
         if (!candidates || candidates.length === 0) {
             window.barcodeAssignInProgress = false;
+            focusBarcodeDispatchInput();
             return;
         }
 
@@ -498,6 +511,7 @@
                         swapScannedAsset(value, assetId, candidates[0].assetsAssignments_id, assetStatus);
                     } else {
                         window.barcodeAssignInProgress = false;
+                        focusBarcodeDispatchInput();
                     }
                 }
             });
@@ -518,7 +532,10 @@
             buttons: {
                 cancel: {
                     label: 'Cancel',
-                    className: 'btn-secondary'
+                    className: 'btn-secondary',
+                    callback: function() {
+                        focusBarcodeDispatchInput();
+                    }
                 },
                 ok: {
                     label: 'Replace',
@@ -530,6 +547,7 @@
                             return true;
                         } else {
                             window.barcodeAssignInProgress = false;
+                            focusBarcodeDispatchInput();
                             return false;
                         }
                     }
@@ -595,6 +613,7 @@
                             message: "This asset is not currently assigned to this project. Would you like to add it to the project, or replace an existing assigned asset?",
                             onEscape: function() {
                                 window.barcodeAssignInProgress = false;
+                                focusBarcodeDispatchInput();
                             },
                             buttons: {
                                 cancel: {
@@ -608,6 +627,7 @@
                                         var resultDiv = $("<div>").addClass("alert alert-warning").text(value + ": Asset not assigned to project - skipped");
                                         $("#barcodeDispatchResult").prepend(resultDiv);
                                         window.barcodeAssignInProgress = false;
+                                        focusBarcodeDispatchInput();
                                     }
                                 },
                                 add: {
@@ -641,6 +661,7 @@
                                     var resultDiv = $("<div>").addClass("alert alert-warning").text(value + ": Asset not assigned to project - skipped");
                                     $("#barcodeDispatchResult").prepend(resultDiv);
                                     window.barcodeAssignInProgress = false;
+                                    focusBarcodeDispatchInput();
                                 }
                             }
                         });
@@ -654,6 +675,7 @@
                     });
                     var resultDiv = $("<div>").addClass("alert alert-danger").text(value + ": " + errorMsg);
                     $("#barcodeDispatchResult").prepend(resultDiv);
+                    focusBarcodeDispatchInput();
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
@@ -663,6 +685,7 @@
                     type: 'error',
                     title: 'Could not update asset status. Please try again.'
                 });
+                focusBarcodeDispatchInput();
             }
         });
     }
