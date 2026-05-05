@@ -249,6 +249,54 @@
             $(this).find(".assetDispatchAssetList-statusNextButton").data('nextstatus', next);
         });
     }
+
+    function buildAssetDispatchCard(asset, assignmentId, statusId, instanceId) {
+        var card = $("<div>").addClass("row align-middle p-2 border border-secondary border-2 rounded mt-auto mb-2 assetDispatchAssetList-card");
+        card.attr("data-currentstatus", statusId);
+        card.attr("data-assignment", assignmentId);
+        card.attr("data-instance", instanceId);
+        card.attr("data-asset", asset.assets_id);
+
+        if (canAssignAssets) {
+            card.append($("<button>")
+                .addClass("btn btn-outline-secondary assetDispatchAssetList-statusPrevButton col-1")
+                .attr("data-nextstatus", "")
+                .hide()
+                .text("«"));
+        }
+
+        var title = '(<a target="_blank" href="{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId + '">' + asset.assets_tag + '</a>)<br>' + asset.assetTypes_name;
+        card.append($("<h6>").addClass("col my-auto").html(title));
+
+        if (canAssignAssets) {
+            card.append($("<button>")
+                .addClass("btn btn-outline-secondary assetDispatchAssetList-statusNextButton col-1")
+                .attr("data-nextstatus", "")
+                .hide()
+                .text("»"));
+        }
+
+        return card;
+    }
+
+    function upsertAssetDispatchCard(asset, assignmentId, assetStatus, instanceId) {
+        var assetCard = $(".assetDispatchAssetList[data-instance=" + instanceId + "] .assetDispatchAssetList-card[data-assignment=" + assignmentId + "]");
+        if (assetCard.length > 0) {
+            assetCard.attr("data-currentstatus", assetStatus);
+            assetCard.attr("data-asset", asset.assets_id);
+            assetCard.data("asset", asset.assets_id);
+            assetCard.data("currentstatus", assetStatus);
+            assetCard.find('a').attr('href', '{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId).text(asset.assets_tag);
+            assetCard.find('h6').html('(<a target="_blank" href="{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId + '">' + asset.assets_tag + '</a>)<br>' + asset.assetTypes_name);
+            assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
+            return assetCard;
+        }
+
+        var newCard = buildAssetDispatchCard(asset, assignmentId, assetStatus, instanceId);
+        $(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]").append(newCard);
+        return newCard;
+    }
+
     /**
      * Function to change the status of an asset assignment
      * @param assetsAssignments_id Id of the AssetAssignment
@@ -327,9 +375,20 @@
                         url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusBarcode.php",
                         type: "POST",
                         data: requestData,
+                        dataType: "json",
                         cache: false,
                         success: function(retryResult) {
                             if (retryResult.result === true) {
+                                if (retryResult.response && retryResult.response.assetsAssignments_id) {
+                                    var cardAsset = {
+                                        assets_id: retryResult.response.assets_id,
+                                        assets_tag: retryResult.response.assets_tag,
+                                        assetTypes_id: retryResult.response.assetTypes_id,
+                                        assetTypes_name: retryResult.response.assetTypes_name
+                                    };
+                                    upsertAssetDispatchCard(cardAsset, retryResult.response.assetsAssignments_id, requestData.assetsAssignments_status, requestData.instances_id);
+                                    drawButtons();
+                                }
                                 Toast.fire({
                                     type: 'success',
                                     title: 'Asset added to project and dispatched via barcode'
@@ -341,7 +400,6 @@
                                 });
                             }
                             window.barcodeAssignInProgress = false;
-                            location.reload();
                         },
                         error: function() {
                             Toast.fire({
@@ -349,7 +407,6 @@
                                 title: 'Asset added to project but status could not be updated'
                             });
                             window.barcodeAssignInProgress = false;
-                            location.reload();
                         }
                     });
                 } else {
@@ -384,12 +441,25 @@
             cache: false,
             success: function(swapResult) {
                 window.barcodeAssignInProgress = false;
+                var card = $(".assetDispatchAssetList-card[data-assignment=" + assignmentId + "]");
+                var instanceId = card.length > 0 ? card.data("instance") : null;
                 if (swapResult.result === true) {
+                    if (swapResult.response && swapResult.response.assetsAssignments_id) {
+                        var cardAsset = {
+                            assets_id: swapResult.response.assets_id,
+                            assets_tag: swapResult.response.assets_tag,
+                            assetTypes_id: swapResult.response.assetTypes_id,
+                            assetTypes_name: swapResult.response.assetTypes_name
+                        };
+                        if (instanceId !== null) {
+                            upsertAssetDispatchCard(cardAsset, swapResult.response.assetsAssignments_id, statusId, instanceId);
+                            drawButtons();
+                        }
+                    }
                     Toast.fire({
                         type: 'success',
                         title: 'Asset replaced in project'
                     });
-                    location.reload();
                 } else {
                     notifyScanError();
                     var swapErrorMsg = swapResult.error ? swapResult.error.message : 'Could not replace asset';
@@ -488,8 +558,22 @@
             cache: false,
             success: function(result, status, data) {
                 if (result.result === true) {
-                    var assetCard = $(".assetDispatchAssetList[data-instance=" + instanceId + "] .assetDispatchAssetList-card[data-asset=" + result.response.assets_id + "]");
-                    assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
+                    if (result.response && result.response.assetsAssignments_id) {
+                        var assetCard = $(".assetDispatchAssetList[data-instance=" + instanceId + "] .assetDispatchAssetList-card[data-assignment=" + result.response.assetsAssignments_id + "]");
+                        if (assetCard.length > 0) {
+                            assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
+                            assetCard.attr("data-currentstatus", assetStatus);
+                            assetCard.data("currentstatus", assetStatus);
+                        } else {
+                            var cardAsset = {
+                                assets_id: result.response.assets_id,
+                                assets_tag: result.response.assets_tag,
+                                assetTypes_id: result.response.assetTypes_id,
+                                assetTypes_name: result.response.assetTypes_name
+                            };
+                            upsertAssetDispatchCard(cardAsset, result.response.assetsAssignments_id, assetStatus, instanceId);
+                        }
+                    }
                     drawButtons();
                     Toast.fire({
                         type: 'success',

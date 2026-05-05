@@ -15,7 +15,8 @@ if ($hasType) $DBLIB->where("assetsBarcodes.assetsBarcodes_type", $_POST['type']
 $DBLIB->where("assetsBarcodes.assetsBarcodes_deleted", 0);
 $DBLIB->where("assets.instances_id", $assetInstanceId);
 $DBLIB->join("assets", "assets.assets_id=assetsBarcodes.assets_id", "LEFT");
-$barcode = $DBLIB->getone("assetsBarcodes", ["assetsBarcodes.assets_id", "assetsBarcodes.assetsBarcodes_id"]);
+    $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
+    $barcode = $DBLIB->getone("assetsBarcodes", ["assetsBarcodes.assets_id", "assetsBarcodes.assetsBarcodes_id", "assets.assets_tag", "assets.assetTypes_id", "assetTypes.assetTypes_name"]);
 if ($barcode and $barcode['assets_id'] != null) {
     $scan = [
         "assetsBarcodes_id" => $barcode['assetsBarcodes_id'],
@@ -33,7 +34,7 @@ if ($barcode and $barcode['assets_id'] != null) {
     $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
     $DBLIB->where("projects.projects_deleted", 0);
     $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-    $currentAssignment = $DBLIB->getOne("assetsAssignments", ["assetsAssignmentsStatus_id"]);
+        $currentAssignment = $DBLIB->getOne("assetsAssignments", ["assetsAssignmentsStatus_id", "assetsAssignments_id"]);
 
     if (!$currentAssignment) {
             // Find replacement candidates in the same project for this asset type
@@ -53,13 +54,13 @@ if ($barcode and $barcode['assets_id'] != null) {
                 $swapCandidates = $DBLIB->get("assetsAssignments", null, ["assetsAssignments_id", "assets.assets_id", "assets.assets_tag", "assets.asset_definableFields_1", "assetsAssignments.assetsAssignmentsStatus_id", "assetsAssignmentsStatus.assetsAssignmentsStatus_name"]);
             }
 
-            finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id'], "swapCandidates" => $swapCandidates]);
+            finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id'], "assets_tag" => $barcode['assets_tag'], "assetTypes_id" => $barcode['assetTypes_id'], "assetTypes_name" => $barcode['assetTypes_name'], "swapCandidates" => $swapCandidates]);
     }
 
     // If the assignment already has the requested status, treat this as success (no-op)
     if ((int)$currentAssignment['assetsAssignmentsStatus_id'] === (int)$_POST['assetsAssignments_status']) {
         $bCMS->auditLog("EDIT-STATUS", "assetsAssignments", "set to " . $_POST['assetsAssignments_status'] . " by barcode scan", $AUTH->data['users_userid'], null, $_POST['projects_id']);
-        finish(true, null, ["assets_id" => $barcode['assets_id']]);
+            finish(true, null, ["assetsAssignments_id" => $currentAssignment['assetsAssignments_id'], "assets_id" => $barcode['assets_id'], "assets_tag" => $barcode['assets_tag'], "assetTypes_id" => $barcode['assetTypes_id'], "assetTypes_name" => $barcode['assetTypes_name']]);
     }
 
     // Otherwise, update the status
@@ -75,7 +76,7 @@ if ($barcode and $barcode['assets_id'] != null) {
         finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id']]);
     } else {
         $bCMS->auditLog("EDIT-STATUS", "assetsAssignments", "set to " . $_POST['assetsAssignments_status'] . " by barcode scan", $AUTH->data['users_userid'], null, $_POST['projects_id']);
-        finish(true, null, ["assets_id" => $barcode['assets_id']]);
+            finish(true, null, ["assetsAssignments_id" => $currentAssignment['assetsAssignments_id'], "assets_id" => $barcode['assets_id'], "assets_tag" => $barcode['assets_tag'], "assetTypes_id" => $barcode['assetTypes_id'], "assetTypes_name" => $barcode['assetTypes_name']]);
     }
     } else {
         finish(false, ["code" => "NOTFOUND", "message" => "Barcode not found"]);

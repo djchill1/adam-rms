@@ -103,6 +103,15 @@ foreach ($assetsToProcess as $asset) {
             if ($insertData['assetsAssignments_discount'] > 0) $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($insertData['assetsAssignments_discount'] / 100))));
 
             $asset['insertedid'] = $insert;
+            if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) {
+                $resultDetail = [
+                    "insertedid" => $insert,
+                    "assets_id" => $asset['assets_id'],
+                    "assets_tag" => $asset['assets_tag'],
+                    "assetTypes_id" => $asset['assetTypes_id'],
+                    "assetTypes_name" => $asset['assetTypes_name']
+                ];
+            }
 
             $usersNotified = []; //If user follows multiple groups which this asset is in they'll be notified multiple times otherwise
             foreach (explode(",",$asset['assets_assetGroups']) as $group) {
@@ -122,8 +131,13 @@ foreach ($assetsToProcess as $asset) {
     }
     $assetsProcessing[] = $asset;
 }
-if ($projectFinanceCacher->save()) finish(true, null, ["failed" => $assetsFailed]);
-else finish(false,["message"=>"Finance Cacher Save failed"]);
+if ($projectFinanceCacher->save()) {
+    $response = ["failed" => $assetsFailed];
+    if (isset($resultDetail)) {
+        $response = array_merge($response, $resultDetail);
+    }
+    finish(true, null, $response);
+} else finish(false, ["message" => "Finance Cacher Save failed"]);
 
 /** @OA\Post(
  *     path="/projects/assets/assign.php", 

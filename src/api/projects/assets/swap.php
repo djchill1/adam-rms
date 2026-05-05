@@ -33,7 +33,8 @@ $DBLIB->where("assets.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("assets.assetTypes_id", $currentAsset["assetTypes_id"]);
 $DBLIB->where ("(assets.assets_endDate IS NULL OR assets.assets_endDate >= '" . date ("Y-m-d H:i:s") . "')");
 $DBLIB->where('assets.assets_deleted', 0);
-$assetToSwap = $DBLIB->getone("assets", "assets_id");
+$DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
+$assetToSwap = $DBLIB->getone("assets", ["assets.assets_id", "assets.assets_tag", "assets.assetTypes_id", "assetTypes.assetTypes_name"]);
 if (!$assetToSwap) finish(false);
 
 $DBLIB->where("assetsAssignments.assets_id", $assetToSwap['assets_id']);
@@ -54,7 +55,13 @@ if (count($assignments) < 1 and $flagsBlocks['COUNT']['BLOCK'] < 1) {
         $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
         $DBLIB->update("assetsAssignments", ["assetsAssignmentsStatus_id" => $_POST['assetsAssignmentsStatus_id']]);
     }
-    finish(true);
+    finish(true, null, [
+        "assetsAssignments_id" => $currentAsset['assetsAssignments_id'],
+        "assets_id" => $assetToSwap['assets_id'],
+        "assets_tag" => $assetToSwap['assets_tag'],
+        "assetTypes_id" => $assetToSwap['assetTypes_id'],
+        "assetTypes_name" => $assetToSwap['assetTypes_name']
+    ]);
 } else finish(false);
 
 /** @OA\Post(
