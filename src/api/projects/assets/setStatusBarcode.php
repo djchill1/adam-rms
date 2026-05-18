@@ -28,7 +28,12 @@ if ($barcode and $barcode['assets_id'] != null) {
     ];
     $DBLIB->insert("assetsBarcodesScans", $scan);
 
-    $DBLIB->where("assetsAssignments.assets_id", $barcode['assets_id']);
+        $DBLIB->where("projects_id", $_POST['projects_id']);
+        $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+        $DBLIB->where("projects_deleted", 0);
+        $project = $DBLIB->getOne("projects", ["projects_dates_deliver_start", "projects_dates_deliver_end"]);
+
+        $DBLIB->where("assetsAssignments.assets_id", $barcode['assets_id']);
     $DBLIB->where("assetsAssignments.projects_id", $_POST['projects_id']);
     $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
     $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
@@ -57,9 +62,15 @@ if ($barcode and $barcode['assets_id'] != null) {
             $DBLIB->where("assetsAssignments.assets_id", $barcode['assets_id']);
             $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
             $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
+            $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
             $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
             $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
             $DBLIB->where("projects.projects_deleted", 0);
+            $DBLIB->where("projects.projects_archived", 0);
+            $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
+            if ($project && $project['projects_dates_deliver_start'] && $project['projects_dates_deliver_end']) {
+                $DBLIB->where("((projects_dates_deliver_start >= '" . $project['projects_dates_deliver_start'] . "' AND projects_dates_deliver_start <= '" . $project['projects_dates_deliver_end'] . "') OR (projects_dates_deliver_end >= '" . $project['projects_dates_deliver_start'] . "' AND projects_dates_deliver_end <= '" . $project['projects_dates_deliver_end'] . "') OR (projects_dates_deliver_end >= '" . $project['projects_dates_deliver_end'] . "' AND projects_dates_deliver_start <= '" . $project['projects_dates_deliver_start'] . "'))");
+            }
             $conflictingAssignment = $DBLIB->getOne("assetsAssignments", ["assetsAssignments.assetsAssignments_id", "assetsAssignments.projects_id", "assetsAssignments.assetsAssignmentsStatus_id", "assetsAssignmentsStatus.assetsAssignmentsStatus_name", "projects.projects_name"]);
 
             finish(false, ["message" => "Asset not assigned to project", "code" => "NOTASSIGNED", "assets_id" => $barcode['assets_id'], "assets_tag" => $barcode['assets_tag'], "assetTypes_id" => $barcode['assetTypes_id'], "assetTypes_name" => $barcode['assetTypes_name'], "swapCandidates" => $swapCandidates, "conflictingAssignment" => $conflictingAssignment]);
