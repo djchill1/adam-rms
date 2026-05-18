@@ -26,7 +26,22 @@ try {
         "assetsAssignments_discount" => $project['projects_defaultDiscount']
     ];
 
-    $insert = $DBLIB->insert("assetsAssignments", $insertData);
+    try {
+        $insert = $DBLIB->insert("assetsAssignments", $insertData);
+    } catch (Exception $e) {
+        $insert = false;
+        $lastError = $e->getMessage();
+        if (stripos($lastError, "Column 'assets_id' cannot be null") !== false) {
+            try {
+                $DBLIB->rawQuery("ALTER TABLE assetsAssignments MODIFY assets_id int NULL");
+                $insert = $DBLIB->insert("assetsAssignments", $insertData);
+            } catch (Exception $e2) {
+                error_log("addFreetext.php schema repair failed: " . $e2->getMessage());
+                $lastError = $e2->getMessage();
+            }
+        }
+    }
+
     if ($insert) {
         $bCMS->auditLog("CREATE-FREETEXT", "assetsAssignments", $insert . " - " . $_POST['freetext'], $AUTH->data['users_userid'], null, $project['projects_id']);
         finish(true, null, [
@@ -35,24 +50,9 @@ try {
         ]);
     }
 
-    $lastError = $DBLIB->getLastError();
-    if (stripos($lastError, "Column 'assets_id' cannot be null") !== false) {
-        try {
-            $DBLIB->rawQuery("ALTER TABLE assetsAssignments MODIFY assets_id int NULL");
-            $insert = $DBLIB->insert("assetsAssignments", $insertData);
-            if ($insert) {
-                $bCMS->auditLog("CREATE-FREETEXT", "assetsAssignments", $insert . " - " . $_POST['freetext'], $AUTH->data['users_userid'], null, $project['projects_id']);
-                finish(true, null, [
-                    "assetsAssignments_id" => $insert,
-                    "freetext" => $_POST['freetext']
-                ]);
-            }
-            $lastError = $DBLIB->getLastError();
-        } catch (Exception $e) {
-            error_log("addFreetext.php schema repair failed: " . $e->getMessage());
-        }
+    if (!isset($lastError)) {
+        $lastError = $DBLIB->getLastError();
     }
-
     finish(false, ["message" => $lastError ?: "Cannot insert assignment"]);
 } catch (Throwable $e) {
     error_log("addFreetext.php exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
