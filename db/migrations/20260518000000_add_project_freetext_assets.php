@@ -10,6 +10,7 @@ final class AddProjectFreetextAssets extends AbstractMigration
     {
         $this->table('assetsAssignments')
             ->addColumn('assetsAssignments_freetext', 'text', ['null' => true, 'after' => 'assetsAssignmentsStatus_id'])
+            ->changeColumn('assets_id', 'integer', ['null' => true, 'signed' => true])
             ->update();
     }
 }
