@@ -155,9 +155,21 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                     console.log(jqXHR, textStatus, errorThrown);
-                    console.log("Connection Error");
+                    var errorMessage = "Sorry we couldn't connect to the internet - please check your connection";
+                    try {
+                        var json = JSON.parse(jqXHR.responseText);
+                        if (json && json.error && json.error.message) {
+                            errorMessage = json.error.message;
+                        } else if (jqXHR.status && jqXHR.status !== 0) {
+                            errorMessage = jqXHR.status + ' ' + (errorThrown || 'Error');
+                        }
+                    } catch (e) {
+                        if (jqXHR.status && jqXHR.status !== 0) {
+                            errorMessage = jqXHR.status + ' ' + (errorThrown || 'Error');
+                        }
+                    }
                     bootbox.alert(
-                        "Sorry we couldn't connect to the internet - please check your connection",
+                        errorMessage,
                         function () {
                         if (reloadIfError) {
                             location.reload();

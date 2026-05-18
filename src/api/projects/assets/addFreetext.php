@@ -1,40 +1,44 @@
 <?php
 require_once __DIR__ . '/../../apiHeadSecure.php';
 
-if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN") or !isset($_POST['projects_id']) or !isset($_POST['freetext']) or strlen($_POST['freetext']) < 1) {
-    finish(false, ["message" => "Missing required parameters"]);
-}
+try {
+    if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN") or !isset($_POST['projects_id']) or !isset($_POST['freetext']) or strlen($_POST['freetext']) < 1) {
+        finish(false, ["message" => "Missing required parameters"]);
+    }
 
-$DBLIB->where("projects.instances_id", $AUTH->data['instance_ids'], 'IN');
-$DBLIB->where("projects.projects_deleted", 0);
-$DBLIB->where("projects.projects_id", $_POST['projects_id']);
-$project = $DBLIB->getone("projects", ["projects_id", "projects_dates_deliver_start", "projects_dates_deliver_end", "projects_defaultDiscount", "projects_name"]);
-if (!$project) finish(false, ["message" => "Project not found"]);
+    $DBLIB->where("projects.instances_id", $AUTH->data['instance_ids'], 'IN');
+    $DBLIB->where("projects.projects_deleted", 0);
+    $DBLIB->where("projects.projects_id", $_POST['projects_id']);
+    $project = $DBLIB->getone("projects", ["projects_id", "projects_dates_deliver_start", "projects_dates_deliver_end", "projects_defaultDiscount", "projects_name"]);
+    if (!$project) finish(false, ["message" => "Project not found"]);
 
-if ($project["projects_dates_deliver_start"] == null or $project["projects_dates_deliver_end"] == null or (strtotime($project["projects_dates_deliver_start"]) >= strtotime($project["projects_dates_deliver_end"]))) {
-    finish(false, ["message" => "Please set the dates for the project before attempting to add items"]);
-}
+    if ($project["projects_dates_deliver_start"] == null or $project["projects_dates_deliver_end"] == null or (strtotime($project["projects_dates_deliver_start"]) >= strtotime($project["projects_dates_deliver_end"]))) {
+        finish(false, ["message" => "Please set the dates for the project before attempting to add items"]);
+    }
 
-// Create the free text assignment without an asset
-$insertData = [
-    "projects_id" => $project['projects_id'],
-    "assets_id" => null,
-    "assetsAssignments_deleted" => 0,
-    "assetsAssignments_timestamp" => date('Y-m-d H:i:s'),
-    "assetsAssignmentsStatus_id" => null,
-    "assetsAssignments_freetext" => $_POST['freetext'],
-    "assetsAssignments_discount" => $project['projects_defaultDiscount']
-];
+    $insertData = [
+        "projects_id" => $project['projects_id'],
+        "assets_id" => null,
+        "assetsAssignments_deleted" => 0,
+        "assetsAssignments_timestamp" => date('Y-m-d H:i:s'),
+        "assetsAssignmentsStatus_id" => null,
+        "assetsAssignments_freetext" => $_POST['freetext'],
+        "assetsAssignments_discount" => $project['projects_defaultDiscount']
+    ];
 
-$insert = $DBLIB->insert("assetsAssignments", $insertData);
-if ($insert) {
-    $bCMS->auditLog("CREATE-FREETEXT", "assetsAssignments", $insert . " - " . $_POST['freetext'], $AUTH->data['users_userid'], null, $project['projects_id']);
-    finish(true, null, [
-        "assetsAssignments_id" => $insert,
-        "freetext" => $_POST['freetext']
-    ]);
-} else {
-    finish(false, ["message" => "Cannot insert assignment"]);
+    $insert = $DBLIB->insert("assetsAssignments", $insertData);
+    if ($insert) {
+        $bCMS->auditLog("CREATE-FREETEXT", "assetsAssignments", $insert . " - " . $_POST['freetext'], $AUTH->data['users_userid'], null, $project['projects_id']);
+        finish(true, null, [
+            "assetsAssignments_id" => $insert,
+            "freetext" => $_POST['freetext']
+        ]);
+    }
+
+    finish(false, ["message" => $DBLIB->getLastError() ?: "Cannot insert assignment"]);
+} catch (Throwable $e) {
+    error_log("addFreetext.php exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+    finish(false, ["message" => "Unable to add free text item: " . $e->getMessage()]);
 }
 
 /** @OA\Post(
