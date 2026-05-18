@@ -62,7 +62,49 @@ if (count($assignments) < 1 and $flagsBlocks['COUNT']['BLOCK'] < 1) {
         "assetTypes_id" => $assetToSwap['assetTypes_id'],
         "assetTypes_name" => $assetToSwap['assetTypes_name']
     ]);
-} else finish(false);
+} else {
+    // If the scanned asset is already assigned to another active clashing project, swap the two assignments.
+    $DBLIB->where("assetsAssignments.assets_id", $_POST['assets_id']);
+    $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
+    $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
+    $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
+    $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
+    $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
+    $DBLIB->where("projects.projects_deleted", 0);
+    $DBLIB->where("projects.projects_archived", 0);
+    $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
+    $DBLIB->where("((projects_dates_deliver_start >= '" . $currentAsset["projects_dates_deliver_start"] . "' AND projects_dates_deliver_start <= '" . $currentAsset["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $currentAsset["projects_dates_deliver_start"] . "' AND projects_dates_deliver_end <= '" . $currentAsset["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $currentAsset["projects_dates_deliver_end"] . "' AND projects_dates_deliver_start <= '" . $currentAsset["projects_dates_deliver_start"] . "'))");
+    $otherAssignment = $DBLIB->getOne("assetsAssignments", ["assetsAssignments.assetsAssignments_id", "assetsAssignments.assets_id", "assetsAssignments.projects_id", "assetsAssignments.assetsAssignmentsStatus_id", "assetsAssignmentsStatus.assetsAssignmentsStatus_name", "projects.projects_name"]);
+
+    if ($otherAssignment && $flagsBlocks['COUNT']['BLOCK'] < 1) {
+        $DBLIB->startTransaction();
+
+        $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
+        $assignment = $DBLIB->update("assetsAssignments", ["assets_id" => $_POST['assets_id']], 1);
+        if ($assignment && isset($_POST['assetsAssignmentsStatus_id']) && $AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS")) {
+            $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
+            $assignment = $DBLIB->update("assetsAssignments", ["assetsAssignmentsStatus_id" => $_POST['assetsAssignmentsStatus_id']]);
+        }
+
+        $DBLIB->where('assetsAssignments_id', $otherAssignment['assetsAssignments_id']);
+        $swapBack = $DBLIB->update("assetsAssignments", ["assets_id" => $currentAsset['assets_id']], 1);
+
+        if ($assignment && $swapBack) {
+            $DBLIB->commit();
+            finish(true, null, [
+                "assetsAssignments_id" => $currentAsset['assetsAssignments_id'],
+                "assets_id" => $assetToSwap['assets_id'],
+                "assets_tag" => $assetToSwap['assets_tag'],
+                "assetTypes_id" => $assetToSwap['assetTypes_id'],
+                "assetTypes_name" => $assetToSwap['assetTypes_name']
+            ]);
+        }
+
+        $DBLIB->rollback();
+    }
+
+    finish(false, ["message" => "Asset not available to swap", "code" => "UNAVAILABLE"]);
+}
 
 /** @OA\Post(
  *     path="/projects/assets/swap.php", 

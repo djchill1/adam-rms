@@ -608,10 +608,14 @@
                     window.barcodeAssignInProgress = true;
 
                     var swapCandidates = result.error.swapCandidates || [];
+                    var conflictText = '';
+                    if (result.error && result.error.conflictingAssignment && result.error.conflictingAssignment.projects_name) {
+                        conflictText = '<div class="alert alert-warning mb-3">This asset is currently assigned to <strong>' + result.error.conflictingAssignment.projects_name + '</strong> with status <strong>' + result.error.conflictingAssignment.assetsAssignmentsStatus_name + '</strong>.</div>';
+                    }
                     if (swapCandidates.length > 0) {
                         bootbox.dialog({
                             title: "Asset not assigned to this project",
-                            message: "This asset is not currently assigned to this project. Would you like to add it to the project, or replace an existing assigned asset?",
+                            message: conflictText + "This asset is not currently assigned to this project. Would you like to add it to the project, or replace an existing assigned asset?",
                             onEscape: function() {
                                 window.barcodeAssignInProgress = false;
                                 focusBarcodeDispatchInput();
@@ -650,7 +654,7 @@
                     } else {
                         bootbox.confirm({
                             title: "Add asset to project?",
-                            message: "This asset is not currently assigned to this project. Would you like to add it to the project and set its status?",
+                            message: conflictText + "This asset is not currently assigned to this project. Would you like to add it to the project and set its status?",
                             callback: function(confirmed) {
                                 if (confirmed) {
                                     assignScannedAsset(value, result.error.assets_id, requestData);
