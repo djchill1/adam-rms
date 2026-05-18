@@ -1,9 +1,5 @@
 <?php
 require_once __DIR__ . '/../../apiHeadSecure.php';
-require_once __DIR__ . '/../../../common/libs/bCMS/projectFinance.php';
-
-use Money\Currency;
-use Money\Money;
 
 if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN") or !isset($_POST['projects_id']) or !isset($_POST['freetext']) or strlen($_POST['freetext']) < 1) {
     finish(false, ["message" => "Missing required parameters"]);
@@ -18,9 +14,6 @@ if (!$project) finish(false, ["message" => "Project not found"]);
 if ($project["projects_dates_deliver_start"] == null or $project["projects_dates_deliver_end"] == null or (strtotime($project["projects_dates_deliver_start"]) >= strtotime($project["projects_dates_deliver_end"]))) {
     finish(false, ["message" => "Please set the dates for the project before attempting to add items"]);
 }
-
-$projectFinanceHelper = new projectFinance();
-$projectFinanceCacher = new projectFinanceCacher($project['projects_id']);
 
 // Create the free text assignment without an asset
 $insertData = [

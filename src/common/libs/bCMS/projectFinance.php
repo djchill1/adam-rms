@@ -39,13 +39,13 @@ class projectFinanceCacher
     //Reset the data
     $this->projectid = $projectid;
     $this->data = [
-      "projectsFinanceCache_equipmentSubTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_equiptmentDiscounts" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_salesTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_staffTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_externalHiresTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_paymentsReceived" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
-      "projectsFinanceCache_value" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_equipmentSubTotal" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_equiptmentDiscounts" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_salesTotal" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_staffTotal" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_externalHiresTotal" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_paymentsReceived" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
+      "projectsFinanceCache_value" => new Money(0, new Currency($AUTH->data['instance']['instances_config_currency'])),
       "projectsFinanceCache_mass" => 0.0
     ];
   }
