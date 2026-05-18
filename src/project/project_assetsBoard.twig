@@ -151,49 +151,73 @@
             </div>
             <div class="modal-body">
                 <ul class="nav nav-tabs" role="tablist">
-                    {% if FINANCIALS.assetsAssigned|length > 0 %}
-                        <li class="nav-item">
-                            <a class="nav-link active" data-toggle="pill" href="#barcode-dispatch-modal-board-thisinstance" role="tab" aria-controls="barcode-dispatch-modal-board-thisinstance" aria-selected="true">{{ USERDATA.instance.instances_name }}</a>
-                        </li>
-                    {% endif %}
-                    {% for instance in FINANCIALS.assetsAssignedSUB %}
-                        <li class="nav-item">
-                            <a class="nav-link{% if FINANCIALS.assetsAssigned|length == 0 and loop.first %} active{% endif %}" data-toggle="pill" href="#barcode-dispatch-modal-board-instance{{ instance['instance'].instances_id }}" role="tab" aria-controls="barcode-dispatch-modal-board-instance{{ instance['instance'].instances_id }}" aria-selected="false">{{  instance['instance'].instances_name }}</a>
-                        </li>
-                    {% endfor %}
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="pill" href="#barcode-dispatch-tab-scan" role="tab" aria-controls="barcode-dispatch-tab-scan" aria-selected="true">Scan Barcode</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="pill" href="#barcode-dispatch-tab-freetext" role="tab" aria-controls="barcode-dispatch-tab-freetext" aria-selected="false">Add Text Item</a>
+                    </li>
                 </ul>
                 <div class="p-3">
                     <div class="tab-content">
-                        {% if FINANCIALS.assetsAssigned|length > 0 %}
-                        <div class="tab-pane show active p2" id="barcode-dispatch-modal-board-thisinstance" role="tabpanel">
-                            <p>Scan a barcode for an asset from {{ USERDATA.instance.instances_name }} to set its status.</p>
-                            <div class="form-group">
-                                <label>Set Asset Status to</label>
-                                <select class="form-control assetStatusSelectorBarcodeDispatch" data-instanceid="{{ USERDATA.instance["instances_id"] }}">
-                                    {% for status in BOARDSTATUSES[USERDATA.instance["instances_id"]] %}
-                                    <option value="{{ status['assetsAssignmentsStatus_id'] }}">{{ status['assetsAssignmentsStatus_name'] }}</option>
+                        <div class="tab-pane show active p2" id="barcode-dispatch-tab-scan" role="tabpanel">
+                            <ul class="nav nav-tabs" role="tablist">
+                                {% if FINANCIALS.assetsAssigned|length > 0 %}
+                                    <li class="nav-item">
+                                        <a class="nav-link active" data-toggle="pill" href="#barcode-dispatch-modal-board-thisinstance" role="tab" aria-controls="barcode-dispatch-modal-board-thisinstance" aria-selected="true">{{ USERDATA.instance.instances_name }}</a>
+                                    </li>
+                                {% endif %}
+                                {% for instance in FINANCIALS.assetsAssignedSUB %}
+                                    <li class="nav-item">
+                                        <a class="nav-link{% if FINANCIALS.assetsAssigned|length == 0 and loop.first %} active{% endif %}" data-toggle="pill" href="#barcode-dispatch-modal-board-instance{{ instance['instance'].instances_id }}" role="tab" aria-controls="barcode-dispatch-modal-board-instance{{ instance['instance'].instances_id }}" aria-selected="false">{{  instance['instance'].instances_name }}</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                            <div class="p-3">
+                                <div class="tab-content">
+                                    {% if FINANCIALS.assetsAssigned|length > 0 %}
+                                    <div class="tab-pane show active p2" id="barcode-dispatch-modal-board-thisinstance" role="tabpanel">
+                                        <p>Scan a barcode for an asset from {{ USERDATA.instance.instances_name }} to set its status.</p>
+                                        <div class="form-group">
+                                            <label>Set Asset Status to</label>
+                                            <select class="form-control assetStatusSelectorBarcodeDispatch" data-instanceid="{{ USERDATA.instance["instances_id"] }}">
+                                                {% for status in BOARDSTATUSES[USERDATA.instance["instances_id"]] %}
+                                                <option value="{{ status['assetsAssignmentsStatus_id'] }}">{{ status['assetsAssignmentsStatus_name'] }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% for instance in FINANCIALS.assetsAssignedSUB %}
+                                    <div class="tab-pane p2{% if FINANCIALS.assetsAssigned|length == 0 and loop.first %} show active{% endif %}" id="barcode-dispatch-modal-board-instance{{ instance['instance']['instances_id'] }}">
+                                        <p>Scan a barcode for an asset from {{  instance['instance'].instances_name }} to set its status.</p>
+                                        <div class="form-group">
+                                            <label>Set Asset Status to</label>
+                                            <select class="form-control assetStatusSelectorBarcodeDispatch" data-instanceid="{{ instance['instance']['instances_id'] }}">
+                                                {% for status in BOARDSTATUSES[instance['instance']['instances_id']] %}
+                                                <option value="{{ status['assetsAssignmentsStatus_id'] }}">{{ status['assetsAssignmentsStatus_name'] }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                     {% endfor %}
-                                </select>
+                                </div>
+                                {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "dispatchBarcodeScanned", "scannerIdSuffix": "Dispatch"} %}
+                                {% endembed %}
+                                <div id="barcodeDispatchResult"></div>
                             </div>
                         </div>
-                        {% endif %}
-                        {% for instance in FINANCIALS.assetsAssignedSUB %}
-                        <div class="tab-pane p2{% if FINANCIALS.assetsAssigned|length == 0 and loop.first %} show active{% endif %}" id="barcode-dispatch-modal-board-instance{{ instance['instance']['instances_id'] }}">
-                            <p>Scan a barcode for an asset from {{  instance['instance'].instances_name }} to set its status.</p>
+                        <div class="tab-pane p2" id="barcode-dispatch-tab-freetext" role="tabpanel">
+                            <h5>Create Free Text Item</h5>
+                            <p>Add a project-scoped text item that can flow through dispatch states without a physical asset.</p>
                             <div class="form-group">
-                                <label>Set Asset Status to</label>
-                                <select class="form-control assetStatusSelectorBarcodeDispatch" data-instanceid="{{ instance['instance']['instances_id'] }}">
-                                    {% for status in BOARDSTATUSES[instance['instance']['instances_id']] %}
-                                    <option value="{{ status['assetsAssignmentsStatus_id'] }}">{{ status['assetsAssignmentsStatus_name'] }}</option>
-                                    {% endfor %}
-                                </select>
+                                <label for="freetextInput">Item Description</label>
+                                <textarea class="form-control" id="freetextInput" rows="3" placeholder="E.g. Fuel, Misc supplies, Setup notes..."></textarea>
                             </div>
+                            <button type="button" class="btn btn-primary" id="freetextCreateBtn">Add Item</button>
+                            <div id="freetextResult" class="mt-3"></div>
                         </div>
-                        {% endfor %}
                     </div>
-                    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "dispatchBarcodeScanned", "scannerIdSuffix": "Dispatch"} %}
-                    {% endembed %}
-                    <div id="barcodeDispatchResult"></div>
                 </div>
             </div>
         </div>
@@ -265,8 +289,22 @@
                 .text("«"));
         }
 
-        var title = '(<a target="_blank" href="{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId + '">' + asset.assets_tag + '</a>)<br>' + asset.assetTypes_name;
-        card.append($("<h6>").addClass("col my-auto").html(title));
+        var title;
+        var title = $("<h6>").addClass("col my-auto");
+        if (asset.assets_id) {
+            title.append("(");
+            title.append($("<a>")
+                .attr("target", "_blank")
+                .attr("href", "{{ CONFIG.ROOTURL }}/asset.php?id=" + asset.assetTypes_id + "&asset=" + asset.assets_id + "&instance=" + instanceId)
+                .text(asset.assets_tag)
+            );
+            title.append(")");
+        } else {
+            title.append(document.createTextNode("(" + asset.assets_tag + ")"));
+        }
+        title.append("<br>");
+        title.append(document.createTextNode(asset.assetTypes_name));
+        card.append(title);
 
         if (canAssignAssets) {
             card.append($("<button>")
@@ -286,8 +324,25 @@
             assetCard.attr("data-asset", asset.assets_id);
             assetCard.data("asset", asset.assets_id);
             assetCard.data("currentstatus", assetStatus);
-            assetCard.find('a').attr('href', '{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId).text(asset.assets_tag);
-            assetCard.find('h6').html('(<a target="_blank" href="{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId + '">' + asset.assets_tag + '</a>)<br>' + asset.assetTypes_name);
+            if (asset.assets_id) {
+                assetCard.find('a').attr('href', '{{ CONFIG.ROOTURL }}/asset.php?id=' + asset.assetTypes_id + '&asset=' + asset.assets_id + '&instance=' + instanceId).text(asset.assets_tag);
+                var title = assetCard.find('h6');
+                title.empty();
+                title.append("(");
+                title.append($("<a>")
+                    .attr("target", "_blank")
+                    .attr("href", "{{ CONFIG.ROOTURL }}/asset.php?id=" + asset.assetTypes_id + "&asset=" + asset.assets_id + "&instance=" + instanceId)
+                    .text(asset.assets_tag)
+                );
+                title.append(")<br>");
+                title.append(document.createTextNode(asset.assetTypes_name));
+            } else {
+                var title = assetCard.find('h6');
+                title.empty();
+                title.append(document.createTextNode("(" + asset.assets_tag + ")"));
+                title.append("<br>");
+                title.append(document.createTextNode(asset.assetTypes_name));
+            }
             assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
             return assetCard;
         }
@@ -780,6 +835,58 @@
         $("#goQuickDispatch").on("click", doQuickDispatch);
         {% endif %}
 
+        // Handle free text item creation
+        $("#freetextCreateBtn").on("click", function() {
+            const freetextContent = $("#freetextInput").val().trim();
+            
+            if (!freetextContent) {
+                Toast.fire({
+                    type: 'error',
+                    title: 'Please enter a description'
+                });
+                return;
+            }
+            
+            $.ajax({
+                url: "{{ CONFIG.ROOTURL }}/api/projects/assets/addFreetext.php",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    projects_id: {{ project.projects_id }},
+                    freetext: freetextContent
+                },
+                cache: false,
+                success: function(result, status, data) {
+                    if (result.result === true) {
+                        $("#freetextInput").val("");
+                        Toast.fire({
+                            type: 'success',
+                            title: 'Text item created'
+                        });
+                        var resultDiv = $("<div>").addClass("alert alert-success").html("<strong>Item created:</strong> " + result.response.freetext);
+                        $("#freetextResult").prepend(resultDiv);
+                        // Refresh page to show new item
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        Toast.fire({
+                            type: 'error',
+                            title: result.error.message || 'Could not create item'
+                        });
+                        var resultDiv = $("<div>").addClass("alert alert-danger").text(result.error.message || 'Error creating item');
+                        $("#freetextResult").prepend(resultDiv);
+                    }
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error("Free text creation request failed", jqXHR, textStatus, errorThrown);
+                    Toast.fire({
+                        type: 'error',
+                        title: 'Could not create item. Please try again.'
+                    });
+                }
+            });
+        });
 
         $('a.assetsBoardToggle[data-toggle="pill"]').on('click', function (e) {
             localStorage.setItem("activeTab-board", e.target.getAttribute('aria-controls'));
