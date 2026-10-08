@@ -51,19 +51,18 @@ try {
         finish(false, ["code" => "ASSET_NOT_FOUND", "message" => "Asset not found in this instance"]);
     }
 
-    $DBLIB->where("assets.assets_id", $assetId);
-    $DBLIB->where("assets.instances_id", $instanceId);
-    $DBLIB->where("assets.assets_deleted", 0);
+    $DBLIB->where("assetsAssignments.assets_id", $assetId);
     $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
     $DBLIB->where("projects.instances_id", $instanceId);
     $DBLIB->where("projects.projects_deleted", 0);
     $DBLIB->where("projects.projects_archived", 0);
     $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
-    $DBLIB->join("assetsAssignments", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
     $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
     $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
-    $assignments = $DBLIB->get("assets", null, [
+    $DBLIB->joinWhere("assetsAssignmentsStatus", "assetsAssignmentsStatus.instances_id", $instanceId);
+    $DBLIB->joinWhere("assetsAssignmentsStatus", "assetsAssignmentsStatus.assetsAssignmentsStatus_deleted", 0);
+    $assignments = $DBLIB->get("assetsAssignments", null, [
         "assetsAssignments.assetsAssignments_id",
         "assetsAssignments.projects_id",
         "assetsAssignments.assetsAssignmentsStatus_id",
@@ -105,19 +104,6 @@ try {
         $DBLIB->where("assetsAssignments.projects_id", $assignment['projects_id']);
         $DBLIB->where("assetsAssignments.assetsAssignmentsStatus_id", $assignment['assetsAssignmentsStatus_id']);
         $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
-        $DBLIB->where("assetsAssignmentsStatus.instances_id", $instanceId);
-        $DBLIB->where("assetsAssignmentsStatus.assetsAssignmentsStatus_deleted", 0);
-        $DBLIB->where("assetsAssignmentsStatus.assetsAssignmentsStatus_dispatched", 1);
-        $DBLIB->where("assets.instances_id", $instanceId);
-        $DBLIB->where("assets.assets_deleted", 0);
-        $DBLIB->where("projects.instances_id", $instanceId);
-        $DBLIB->where("projects.projects_deleted", 0);
-        $DBLIB->where("projects.projects_archived", 0);
-        $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
-        $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
-        $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-        $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-        $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
         $updated = $DBLIB->update("assetsAssignments", [
             "assetsAssignmentsStatus_id" => $destinationStatusId,
         ], 1);
