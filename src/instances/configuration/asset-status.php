@@ -6,6 +6,7 @@ $PAGEDATA['pageConfig'] = ["TITLE" => "Business Asset Status Settings", "BREADCR
 if (!$AUTH->instancePermissionCheck("BUSINESS:BUSINESS_SETTINGS:VIEW")) die($TWIG->render('404.twig', $PAGEDATA));
 
 $DBLIB->orderBy("assetsAssignmentsStatus_order", "ASC");
+$DBLIB->orderBy("assetsAssignmentsStatus_id", "ASC");
 $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
 $PAGEDATA['USERDATA']['instance']['assetStatus'] = $DBLIB->get("assetsAssignmentsStatus");
