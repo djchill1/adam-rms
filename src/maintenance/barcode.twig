@@ -8,11 +8,14 @@
         </div>
     </div>
     <div class="row">
-    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": "", "scannerStandaloneRow": false, "scannerColumnClass": "col-12 col-md-6", "showScannerHelp": false} %}
+    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": "", "scannerStandaloneRow": false, "scannerColumnClass": "col-12 col-md-6", "scannerCardClass": "h-100", "showScannerHelp": false} %}
     {% endembed %}
         <div class="col-12 col-md-6">
             {% set canEnableGlobalCheckIn = GLOBAL_CHECKIN_CAN_UPDATE and GLOBAL_CHECKIN_HAS_DISPATCHED and GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
-            <div class="card" id="globalCheckInCard">
+            <div class="card h-100" id="globalCheckInCard">
+                <div class="card-header">
+                    <h3 class="card-title">Global Check In</h3>
+                </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center flex-wrap">
                         <label class="mb-0 mr-2 text-nowrap">
