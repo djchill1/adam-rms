@@ -8,11 +8,11 @@
         </div>
     </div>
     <div class="row">
-    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": "", "scannerStandaloneRow": false, "scannerColumnClass": "col-12 col-md-6", "scannerCardClass": "h-100", "showScannerHelp": false} %}
+    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": "", "scannerStandaloneRow": false, "scannerColumnClass": "col-12 col-md-6", "showScannerHelp": false} %}
     {% endembed %}
         <div class="col-12 col-md-6">
             {% set canEnableGlobalCheckIn = GLOBAL_CHECKIN_CAN_UPDATE and GLOBAL_CHECKIN_HAS_DISPATCHED and GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
-            <div class="card h-100" id="globalCheckInCard">
+            <div class="card" id="globalCheckInCard">
                 <div class="card-header">
                     <h3 class="card-title">Global Check In</h3>
                 </div>
@@ -381,15 +381,17 @@
                 $details.append("<br>").append(document.createTextNode(new Date().toLocaleTimeString()));
                 $body.append($details);
                 var $footer = $("<div>").addClass("card-footer text-right");
-                $footer.append($("<a>")
-                    .addClass("btn btn-sm btn-info mr-1")
+                var $buttonGroup = $("<div>").addClass("btn-group");
+                $buttonGroup.append($("<a>")
+                    .addClass("btn btn-sm btn-primary")
                     .attr("href", "{{ CONFIG.ROOTURL }}/project/?id=" + encodeURIComponent(project.projects_id))
                     .text("View Project"));
-                $footer.append($("<a>")
+                $buttonGroup.append($("<a>")
                     .addClass("btn btn-sm btn-default")
                     .attr("href", "{{ CONFIG.ROOTURL }}/asset.php?id=" + encodeURIComponent(asset.assetTypes_id) + "&asset=" + encodeURIComponent(asset.assets_id))
                     .attr("target", "_blank")
                     .text("View Asset"));
+                $footer.append($buttonGroup);
                 $assetCard.append($body, $footer);
                 $card.append($assetCard);
                 $("#assetsScannedList").prepend($card);
