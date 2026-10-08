@@ -44,8 +44,20 @@
                                         </span>
                                     </td>
                                     {% endif %}
-                                    <td class="w-75">
+                                    <td class="w-50">
                                         <input type="text" class="assetStatusName form-control" name="{{ status.assetsAssignmentsStatus_id }}" value="{{ status.assetsAssignmentsStatus_name }}" />
+                                    </td>
+                                    <td>
+                                        <label class="mb-0">
+                                            <input type="checkbox" class="assetStatusGlobalFlag" data-flag="dispatched" data-statusid="{{ status.assetsAssignmentsStatus_id }}"{% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions == false %} disabled{% endif %}{% if status.assetsAssignmentsStatus_dispatched %} checked{% endif %}>
+                                            Dispatched
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <label class="mb-0">
+                                            <input type="checkbox" class="assetStatusGlobalFlag" data-flag="returned" data-statusid="{{ status.assetsAssignmentsStatus_id }}"{% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions == false %} disabled{% endif %}{% if status.assetsAssignmentsStatus_returned %} checked{% endif %}>
+                                            Returned
+                                        </label>
                                     </td>
                                     <td class="text-right border-left">
                                         <button type="button" class="btn btn-danger" onclick="removeStatus({{ status.assetsAssignmentsStatus_id }})"><i class="fa fa-trash"></i></button>
@@ -95,6 +107,19 @@
                         ajaxcall(
                             "instances/assetAssignmentStatus/edit.php",
                             {"statusName": $(this)[0].value, "statusId": $(this)[0].name},
+                            null,
+                            true
+                        );
+                    });
+                    $(".assetStatusGlobalFlag").on("change", function () {
+                        var $flag = $(this);
+                        var data = {
+                            "statusId": $flag.data("statusid")
+                        };
+                        data[$flag.data("flag")] = $flag.prop("checked") ? 1 : 0;
+                        ajaxcall(
+                            "instances/assetAssignmentStatus/edit.php",
+                            data,
                             null,
                             true
                         );

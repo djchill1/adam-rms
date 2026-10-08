@@ -38,6 +38,43 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="col-12 col-md-6">
+            {% set canEnableGlobalCheckIn = GLOBAL_CHECKIN_CAN_UPDATE and GLOBAL_CHECKIN_HAS_DISPATCHED and GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
+            <div class="card" id="globalCheckInCard">
+                <div class="card-header">
+                    <h3 class="card-title">Global Check In</h3>
+                </div>
+                <div class="card-body">
+                    <label class="d-block">
+                        <input type="checkbox" id="globalCheckInEnabled"{% if not canEnableGlobalCheckIn %} disabled{% endif %}>
+                        Global Check In
+                    </label>
+                    {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
+                        <div class="form-group mb-0">
+                            <label for="globalCheckInStatus">Set scanned assets to</label>
+                            <select class="form-control" id="globalCheckInStatus" disabled>
+                                {% for status in GLOBAL_CHECKIN_RETURNED_STATUSES %}
+                                    <option value="{{ status.assetsAssignmentsStatus_id }}"{% if loop.first %} selected{% endif %}>{{ status.assetsAssignmentsStatus_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+                    {% if not GLOBAL_CHECKIN_CAN_UPDATE %}
+                        <div class="alert alert-warning mt-2 mb-0">You do not have permission to change asset statuses.</div>
+                    {% endif %}
+                    {% if not GLOBAL_CHECKIN_HAS_DISPATCHED %}
+                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Dispatched.</div>
+                    {% endif %}
+                    {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length == 0 %}
+                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Returned.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12 col-md-6">
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Assets Scanned</h3>
@@ -80,7 +117,12 @@
                 console.log("Request already in progress")
                 return
             }
-            if (barcodeScanLocation.type === false) {
+            if ($("#globalCheckInEnabled").prop("checked")) {
+                scanParseAsset(value, type, {
+                    enabled: true,
+                    statusId: $("#globalCheckInStatus").val()
+                })
+            } else if (barcodeScanLocation.type === false) {
                 scanParseLocation(value, type)
             } else {
                 scanParseAsset(value, type)
@@ -111,10 +153,31 @@
                 }
             });
         }
-        function scanParseAsset(barcodeValue, barcodeType) {
+        function scanParseAsset(barcodeValue, barcodeType, globalCheckIn) {
+            if (globalCheckIn === undefined) {
+                globalCheckIn = {
+                    enabled: $("#globalCheckInEnabled").prop("checked"),
+                    statusId: $("#globalCheckInStatus").val()
+                }
+            }
             barcodeRequestInProgress = true
-            ajaxcall("assets/barcodes/search.php", {"text":barcodeValue,"type":barcodeType,"location":barcodeScanLocation.value,"locationType":barcodeScanLocation.type,"scanned": true}, function (assetResult) {
+            var searchData = {"text":barcodeValue,"type":barcodeType,"location":barcodeScanLocation.value,"locationType":barcodeScanLocation.type,"scanned": true};
+            function handleAssetSearch(assetResult) {
+                if (!assetResult || !assetResult.result || !assetResult.response) {
+                    if (globalCheckIn.enabled) {
+                        showGlobalCheckInError(assetResult && assetResult.error && assetResult.error.message
+                            ? assetResult.error.message
+                            : "The barcode could not be found. Please check the barcode and try again.");
+                    } else {
+                        barcodeRequestInProgress = false;
+                    }
+                    return;
+                }
                 if (assetResult.response.asset === false && assetResult.response.location !== false) {
+                    if (globalCheckIn.enabled) {
+                        showGlobalCheckInError("This barcode belongs to a location, not an asset that can be checked in.");
+                        return;
+                    }
                     bootbox.confirm({
                         title: "Location Barcode Scanned",
                         message: 'Would you like to change your location to ' + assetResult.response.location['locations_name'] + '?',
@@ -138,6 +201,10 @@
                         barcodeRequestInProgress = false
                     }});
                 } else if (assetResult.response.asset === false) {
+                    if (globalCheckIn.enabled) {
+                        showGlobalCheckInError("No asset was found for this barcode. It may not be associated with an asset.");
+                        return;
+                    }
                     {% if "ASSETS:ASSET_BARCODES:EDIT:ASSOCIATE_UNNASOCIATED_BARCODES_WITH_ASSETS"|instancePermissions %}
                         bootbox.confirm({
                             title: "Unassociated Barcode",
@@ -204,13 +271,127 @@
                         });
                     {% endif %}
                 } else if (assetResult.result && assetResult.response.asset) {
-                    appendAssetToList(assetResult.response.asset, assetResult.response.barcode)
-                    window.playBarcodeSuccessTone();
-                    barcodeRequestInProgress = false
+                    if (globalCheckIn.enabled) {
+                        submitGlobalCheckIn(assetResult.response.asset, assetResult.response.barcode, globalCheckIn.statusId);
+                    } else {
+                        appendAssetToList(assetResult.response.asset, assetResult.response.barcode)
+                        window.playBarcodeSuccessTone();
+                        barcodeRequestInProgress = false
+                    }
+                } else if (globalCheckIn.enabled) {
+                    showGlobalCheckInError("The barcode could not be found. Please check the barcode and try again.");
+                }
+            }
+            if (globalCheckIn.enabled) {
+                $.ajax({
+                    url: "{{ CONFIG.ROOTURL }}/api/assets/barcodes/search.php",
+                    type: "POST",
+                    dataType: "json",
+                    data: searchData,
+                    cache: false,
+                    success: handleAssetSearch,
+                    error: function() {
+                        showGlobalCheckInError("Sorry, we couldn't look up this barcode. Please check your connection and try again.");
+                    }
+                });
+            } else {
+                ajaxcall("assets/barcodes/search.php", searchData, handleAssetSearch);
+            }
+        }
+        function notifyGlobalCheckInError() {
+            try {
+                var AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                var context = window.__globalCheckInAudioContext || new AudioContext();
+                window.__globalCheckInAudioContext = context;
+                if (context.state === "suspended") context.resume().catch(function() {});
+                var now = context.currentTime;
+                var tone = context.createOscillator();
+                var gain = context.createGain();
+                tone.type = "square";
+                tone.frequency.setValueAtTime(440, now);
+                tone.frequency.linearRampToValueAtTime(260, now + 0.14);
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+                tone.connect(gain);
+                gain.connect(context.destination);
+                tone.start(now);
+                tone.stop(now + 0.14);
+            } catch (e) {
+                console.error("Global Check In error tone failed", e);
+            }
+        }
+        function showGlobalCheckInError(message) {
+            notifyGlobalCheckInError();
+            bootbox.alert(message, function() {
+                barcodeRequestInProgress = false;
+            });
+        }
+        function submitGlobalCheckIn(asset, barcode, statusId) {
+            if (!statusId) {
+                showGlobalCheckInError("No Returned status is selected. Configure a Returned status before checking assets in.");
+                return;
+            }
+            $.ajax({
+                url: "{{ CONFIG.ROOTURL }}/api/projects/assets/globalCheckIn.php",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    assets_id: asset.assets_id,
+                    assetsAssignmentsStatus_id: statusId
+                },
+                cache: false,
+                success: function(result) {
+                    if (result.result && result.response && result.response.project) {
+                        appendAssetToList(asset, barcode, result.response.project);
+                        window.playBarcodeSuccessTone();
+                        barcodeRequestInProgress = false;
+                    } else {
+                        showGlobalCheckInError(result.error && result.error.message
+                            ? result.error.message
+                            : "This asset cannot be checked in globally.");
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    var message = "Sorry, we couldn't check this asset in. Please check your connection and try again.";
+                    try {
+                        var result = JSON.parse(jqXHR.responseText);
+                        if (result.error && result.error.message) message = result.error.message;
+                    } catch (e) {
+                        if (jqXHR.status) message = jqXHR.status + " " + (errorThrown || "Error");
+                    }
+                    showGlobalCheckInError(message);
                 }
             });
         }
-        function appendAssetToList(asset, barcode) {
+        function appendAssetToList(asset, barcode, project) {
+            if (project) {
+                var $card = $("<div>").addClass("col-auto d-flex align-items-stretch").css("padding", "10px");
+                var $assetCard = $("<div>").addClass("card bg-light");
+                var $body = $("<div>").addClass("card-body").css("max-width", "250px");
+                $body.append($("<h2>").addClass("lead").append($("<b>").text(asset.assets_tag)).append(" " + asset.assetTypes_name));
+                var $details = $("<p>").addClass("text-muted text-sm m-0")
+                    .text((asset.assetCategoriesGroups_name || "") + " - " + (asset.assetCategories_name || ""));
+                $details.append("<br>").append(document.createTextNode(asset.manufacturers_name || ""));
+                $details.append("<br>").append(document.createTextNode(project.projects_name));
+                $details.append("<br>").append(document.createTextNode(new Date().toLocaleTimeString()));
+                $body.append($details);
+                var $footer = $("<div>").addClass("card-footer text-right");
+                $footer.append($("<a>")
+                    .addClass("btn btn-sm btn-info mr-1")
+                    .attr("href", "{{ CONFIG.ROOTURL }}/project/?id=" + encodeURIComponent(project.projects_id))
+                    .text("View Project"));
+                $footer.append($("<a>")
+                    .addClass("btn btn-sm btn-default")
+                    .attr("href", "{{ CONFIG.ROOTURL }}/asset.php?id=" + encodeURIComponent(asset.assetTypes_id) + "&asset=" + encodeURIComponent(asset.assets_id))
+                    .attr("target", "_blank")
+                    .text("View Asset"));
+                $assetCard.append($body, $footer);
+                $card.append($assetCard);
+                $("#assetsScannedList").prepend($card);
+                return;
+            }
             $("#assetsScannedList").prepend(`
                 <div class="col-auto d-flex align-items-stretch" style="padding: 10px;">
                     <div class="card bg-light">
@@ -282,11 +463,19 @@
                 name: null,
                 type: false
             }
-            $("#assetsScannedList").parent().hide()
+            $("#assetsScannedList").parent().toggle($("#globalCheckInEnabled").prop("checked"))
             $("#setLocationCard").show()
             $("#currentLocationCard").hide()
         }
         $(document).ready(function () {
+            $("#globalCheckInEnabled").on("change", function() {
+                $("#globalCheckInStatus").prop("disabled", !this.checked);
+                if (this.checked || barcodeScanLocation.type !== false) {
+                    $("#assetsScannedList").parent().show();
+                } else {
+                    $("#assetsScannedList").parent().hide();
+                }
+            });
             if (localStorage.getItem("adamrms-barcode-scan-location-value") !== null && localStorage.getItem("adamrms-barcode-scan-location-name") !== null && localStorage.getItem("adamrms-barcode-scan-location-type") !== null) {
                 setScanLocation(localStorage.getItem("adamrms-barcode-scan-location-value"), localStorage.getItem("adamrms-barcode-scan-location-name"), localStorage.getItem("adamrms-barcode-scan-location-type"))
             } else {
