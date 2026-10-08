@@ -7,14 +7,18 @@
     - scannerIdSuffix: Unique suffix for HTML element IDs to allow multiple scanners on a page (default: '')
 #}
 {% set suffix = scannerIdSuffix|default('') %}
+{% if scannerStandaloneRow is not defined or scannerStandaloneRow %}
 <div class="row">
-    <div class="col-12">
+{% endif %}
+    <div class="{{ scannerColumnClass|default('col-12') }}">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title"><i class="fas fa-keyboard"></i> USB/Bluetooth Scanner</h3>
             </div>
             <div class="card-body">
-                <p>Use a USB or Bluetooth barcode scanner, or type a barcode value manually and press Enter.</p>
+                {% if showScannerHelp is not defined or showScannerHelp %}
+                    <p>Use a USB or Bluetooth barcode scanner, or type a barcode value manually and press Enter.</p>
+                {% endif %}
                 <div class="input-group">
                     <input type="text" class="form-control" id="barcodeScanTextInput{{ suffix }}" placeholder="Scan or type barcode value">
                     <div class="input-group-append">
@@ -32,7 +36,9 @@
             </div>
         </div>
     </div>
+{% if scannerStandaloneRow is not defined or scannerStandaloneRow %}
 </div>
+{% endif %}
 <script>
     (function() {
         var suffix = {{ suffix|json_encode|raw }};

@@ -7,8 +7,41 @@
             </div>
         </div>
     </div>
-    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": ""} %}
+    <div class="row">
+    {% embed 'assets/widgets/barcodeScanner.twig' with {"scannerCallback": "mainBarcodeScanned", "scannerIdSuffix": "", "scannerStandaloneRow": false, "scannerColumnClass": "col-12 col-md-6", "showScannerHelp": false} %}
     {% endembed %}
+        <div class="col-12 col-md-6">
+            {% set canEnableGlobalCheckIn = GLOBAL_CHECKIN_CAN_UPDATE and GLOBAL_CHECKIN_HAS_DISPATCHED and GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
+            <div class="card" id="globalCheckInCard">
+                <div class="card-body">
+                    <div class="d-flex align-items-center flex-wrap">
+                        <label class="mb-0 mr-2 text-nowrap">
+                            <input type="checkbox" id="globalCheckInEnabled" aria-label="Enable Global Check In"{% if not canEnableGlobalCheckIn %} disabled{% endif %}>
+                        </label>
+                        {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
+                            <label for="globalCheckInStatus" class="mb-0 mr-2 text-nowrap">Set scanned assets to</label>
+                            <select class="form-control" id="globalCheckInStatus" disabled style="width: auto; min-width: 150px;">
+                                {% for status in GLOBAL_CHECKIN_RETURNED_STATUSES %}
+                                    <option value="{{ status.assetsAssignmentsStatus_id }}"{% if loop.first %} selected{% endif %}>{{ status.assetsAssignmentsStatus_name }}</option>
+                                {% endfor %}
+                            </select>
+                        {% else %}
+                            <span>Set scanned assets to</span>
+                        {% endif %}
+                    </div>
+                    {% if not GLOBAL_CHECKIN_CAN_UPDATE %}
+                        <div class="alert alert-warning mt-2 mb-0">You do not have permission to change asset statuses.</div>
+                    {% endif %}
+                    {% if not GLOBAL_CHECKIN_HAS_DISPATCHED %}
+                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Dispatched.</div>
+                    {% endif %}
+                    {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length == 0 %}
+                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Returned.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="row">
         <div class="col-12 col-md-6">
             <div class="card" id="currentLocationCard">
@@ -39,42 +72,9 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6">
-            {% set canEnableGlobalCheckIn = GLOBAL_CHECKIN_CAN_UPDATE and GLOBAL_CHECKIN_HAS_DISPATCHED and GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
-            <div class="card" id="globalCheckInCard">
-                <div class="card-header">
-                    <h3 class="card-title">Global Check In</h3>
-                </div>
-                <div class="card-body">
-                    <label class="d-block">
-                        <input type="checkbox" id="globalCheckInEnabled"{% if not canEnableGlobalCheckIn %} disabled{% endif %}>
-                        Global Check In
-                    </label>
-                    {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length > 0 %}
-                        <div class="form-group mb-0">
-                            <label for="globalCheckInStatus">Set scanned assets to</label>
-                            <select class="form-control" id="globalCheckInStatus" disabled>
-                                {% for status in GLOBAL_CHECKIN_RETURNED_STATUSES %}
-                                    <option value="{{ status.assetsAssignmentsStatus_id }}"{% if loop.first %} selected{% endif %}>{{ status.assetsAssignmentsStatus_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    {% endif %}
-                    {% if not GLOBAL_CHECKIN_CAN_UPDATE %}
-                        <div class="alert alert-warning mt-2 mb-0">You do not have permission to change asset statuses.</div>
-                    {% endif %}
-                    {% if not GLOBAL_CHECKIN_HAS_DISPATCHED %}
-                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Dispatched.</div>
-                    {% endif %}
-                    {% if GLOBAL_CHECKIN_RETURNED_STATUSES|length == 0 %}
-                        <div class="alert alert-warning mt-2 mb-0">Global Check In is unavailable because no asset status is configured as Returned.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
     </div>
     <div class="row">
-        <div class="col-12 col-md-6">
+        <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Assets Scanned</h3>
