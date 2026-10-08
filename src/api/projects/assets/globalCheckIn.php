@@ -15,22 +15,6 @@ $assetId = (int)$_POST['assets_id'];
 $destinationStatusId = (int)$_POST['assetsAssignmentsStatus_id'];
 
 try {
-    $DBLIB->where("instances_id", $instanceId);
-    $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
-    $DBLIB->where("assetsAssignmentsStatus_dispatched", 1);
-    if (!$DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_id"])) {
-        finish(false, ["code" => "NO_DISPATCHED_STATUSES", "message" => "Global Check In is unavailable because no asset status is configured as Dispatched"]);
-    }
-
-    $DBLIB->where("assetsAssignmentsStatus_id", $destinationStatusId);
-    $DBLIB->where("instances_id", $instanceId);
-    $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
-    $DBLIB->where("assetsAssignmentsStatus_returned", 1);
-    $destinationStatus = $DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_id"]);
-    if (!$destinationStatus) {
-        finish(false, ["code" => "INVALID_RETURNED_STATUS", "message" => "The selected destination is not configured as a Returned status"]);
-    }
-
     $DBLIB->where("assets.assets_id", $assetId);
     $DBLIB->where("assets.instances_id", $instanceId);
     $DBLIB->where("assets.assets_deleted", 0);
@@ -54,46 +38,96 @@ try {
     $DBLIB->where("assetsAssignments.assets_id", $assetId);
     $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
     $DBLIB->where("projects.instances_id", $instanceId);
-    $DBLIB->where("projects.projects_deleted", 0);
-    $DBLIB->where("projects.projects_archived", 0);
-    $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
     $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
     $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
     $DBLIB->joinWhere("assetsAssignmentsStatus", "assetsAssignmentsStatus.instances_id", $instanceId);
-    $DBLIB->joinWhere("assetsAssignmentsStatus", "assetsAssignmentsStatus.assetsAssignmentsStatus_deleted", 0);
     $assignments = $DBLIB->get("assetsAssignments", null, [
         "assetsAssignments.assetsAssignments_id",
         "assetsAssignments.projects_id",
         "assetsAssignments.assetsAssignmentsStatus_id",
+        "projects.projects_name",
+        "projects.projects_deleted",
+        "projects.projects_archived",
+        "projectsStatuses.projectsStatuses_assetsReleased",
+        "assetsAssignmentsStatus.assetsAssignmentsStatus_name",
         "assetsAssignmentsStatus.assetsAssignmentsStatus_dispatched",
         "assetsAssignmentsStatus.assetsAssignmentsStatus_returned",
         "assetsAssignmentsStatus.assetsAssignmentsStatus_deleted",
-        "projects.projects_name",
     ]);
 
-    if (!$assignments) {
-        finish(false, ["code" => "NO_ACTIVE_PROJECT", "message" => "This asset is not assigned to an active project and cannot be checked in globally"]);
+    $lastScan = assetLatestScan($assetId);
+    $assetDetails = [
+        "assets_tag" => $asset['assets_tag'],
+        "assetTypes_name" => $asset['assetTypes_name'],
+        "assignments" => array_map(function ($assignment) {
+            $isActiveProject = (int)$assignment['projects_deleted'] === 0
+                && (int)$assignment['projects_archived'] === 0
+                && $assignment['projectsStatuses_assetsReleased'] !== null
+                && (int)$assignment['projectsStatuses_assetsReleased'] === 0;
+            return [
+                "projects_name" => $assignment['projects_name'],
+                "active" => $isActiveProject,
+                "assetsAssignmentsStatus_name" => $assignment['assetsAssignmentsStatus_name'] ?: "No status",
+                "assetsAssignmentsStatus_dispatched" => (int)$assignment['assetsAssignmentsStatus_dispatched'] === 1,
+                "assetsAssignmentsStatus_returned" => (int)$assignment['assetsAssignmentsStatus_returned'] === 1,
+            ];
+        }, $assignments ?: []),
+        "lastScanned" => $lastScan ? $lastScan['assetsBarcodesScans_timestamp'] : null,
+    ];
+    $finishCheckInError = function ($code, $message) use ($assetDetails) {
+        finish(false, [
+            "code" => $code,
+            "message" => $message,
+            "assetDetails" => $assetDetails,
+        ]);
+    };
+
+    $DBLIB->where("instances_id", $instanceId);
+    $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
+    $DBLIB->where("assetsAssignmentsStatus_dispatched", 1);
+    if (!$DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_id"])) {
+        $finishCheckInError("NO_DISPATCHED_STATUSES", "Global Check In is unavailable because no asset status is configured as Dispatched");
     }
 
-    $eligibleAssignments = array_values(array_filter($assignments, function ($assignment) {
+    $DBLIB->where("assetsAssignmentsStatus_id", $destinationStatusId);
+    $DBLIB->where("instances_id", $instanceId);
+    $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
+    $DBLIB->where("assetsAssignmentsStatus_returned", 1);
+    $destinationStatus = $DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_id"]);
+    if (!$destinationStatus) {
+        $finishCheckInError("INVALID_RETURNED_STATUS", "The selected destination is not configured as a Returned status");
+    }
+
+    $activeAssignments = array_values(array_filter($assignments ?: [], function ($assignment) {
+        return (int)$assignment['projects_deleted'] === 0
+            && (int)$assignment['projects_archived'] === 0
+            && $assignment['projectsStatuses_assetsReleased'] !== null
+            && (int)$assignment['projectsStatuses_assetsReleased'] === 0;
+    }));
+
+    if (!$activeAssignments) {
+        $finishCheckInError("NO_ACTIVE_PROJECT", "This asset is not assigned to an active project and cannot be checked in globally");
+    }
+
+    $eligibleAssignments = array_values(array_filter($activeAssignments, function ($assignment) {
         return (int)$assignment['assetsAssignmentsStatus_dispatched'] === 1
             && (int)$assignment['assetsAssignmentsStatus_deleted'] === 0;
     }));
 
     if (count($eligibleAssignments) === 0) {
-        $alreadyReturned = count(array_filter($assignments, function ($assignment) {
+        $alreadyReturned = count(array_filter($activeAssignments, function ($assignment) {
             return (int)$assignment['assetsAssignmentsStatus_returned'] === 1
                 && (int)$assignment['assetsAssignmentsStatus_deleted'] === 0;
         })) > 0;
         if ($alreadyReturned) {
-            finish(false, ["code" => "ALREADY_RETURNED", "message" => "This asset is already in a Returned status"]);
+            $finishCheckInError("ALREADY_RETURNED", "This asset is already in a Returned status");
         }
-        finish(false, ["code" => "NOT_DISPATCHED", "message" => "This asset is not currently in a Dispatched status"]);
+        $finishCheckInError("NOT_DISPATCHED", "This asset is not currently in a Dispatched status");
     }
 
     if (count($eligibleAssignments) > 1) {
-        finish(false, ["code" => "AMBIGUOUS_ACTIVE_ASSIGNMENT", "message" => "This asset is dispatched to more than one active project and cannot be checked in automatically"]);
+        $finishCheckInError("AMBIGUOUS_ACTIVE_ASSIGNMENT", "This asset is dispatched to more than one active project and cannot be checked in automatically");
     }
 
     $assignment = $eligibleAssignments[0];
@@ -110,7 +144,7 @@ try {
 
         if (!$updated || (int)$DBLIB->count !== 1) {
             $DBLIB->rollback();
-            finish(false, ["code" => "ASSIGNMENT_CHANGED", "message" => "The asset assignment changed while it was being checked in. Please scan it again"]);
+            $finishCheckInError("ASSIGNMENT_CHANGED", "The asset assignment changed while it was being checked in. Please scan it again");
         }
         $DBLIB->commit();
         $bCMS->auditLog(

@@ -325,9 +325,36 @@
                 console.error("Global Check In error tone failed", e);
             }
         }
-        function showGlobalCheckInError(message) {
+        function showGlobalCheckInError(message, assetDetails) {
             notifyGlobalCheckInError();
-            bootbox.alert(message, function() {
+            var $content = $("<div>").append($("<p>").text(message));
+            if (assetDetails) {
+                var $details = $("<div>").addClass("small text-muted");
+                if (assetDetails.assets_tag || assetDetails.assetTypes_name) {
+                    $details.append($("<p>").addClass("mb-1").text(
+                        "Asset: " + [assetDetails.assets_tag, assetDetails.assetTypes_name].filter(Boolean).join(" - ")
+                    ));
+                }
+                if (assetDetails.assignments && assetDetails.assignments.length > 0) {
+                    var $assignmentList = $("<ul>").addClass("mb-1 pl-3");
+                    assetDetails.assignments.forEach(function(assignment) {
+                        var projectName = assignment.projects_name || "Unknown project";
+                        var statusName = assignment.assetsAssignmentsStatus_name || "No status";
+                        var projectState = assignment.active ? "Active project" : "Inactive project";
+                        $assignmentList.append($("<li>").text(
+                            projectName + " - " + statusName + " (" + projectState + ")"
+                        ));
+                    });
+                    $details.append($("<div>").text("Project assignment and current status:")).append($assignmentList);
+                } else {
+                    $details.append($("<p>").addClass("mb-1").text("Project assignment: None found"));
+                }
+                $details.append($("<p>").addClass("mb-0").text(
+                    "Last scanned: " + (assetDetails.lastScanned || "No recorded barcode scan")
+                ));
+                $content.append($details);
+            }
+            bootbox.alert($content, function() {
                 barcodeRequestInProgress = false;
             });
         }
@@ -353,7 +380,8 @@
                     } else {
                         showGlobalCheckInError(result.error && result.error.message
                             ? result.error.message
-                            : "This asset cannot be checked in globally.");
+                            : "This asset cannot be checked in globally.",
+                            result.error ? result.error.assetDetails : null);
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -364,7 +392,7 @@
                     } catch (e) {
                         if (jqXHR.status) message = jqXHR.status + " " + (errorThrown || "Error");
                     }
-                    showGlobalCheckInError(message);
+                        showGlobalCheckInError(message, result && result.error ? result.error.assetDetails : null);
                 }
             });
         }
